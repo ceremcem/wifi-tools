@@ -1,5 +1,53 @@
 #!/bin/bash 
 
+user=$SUDO_USER
+if [[ "$user" == "" ]]; then 
+	user=$(whoami)
+fi
+CONF_DIR="/home/$user/.cca/wifi-conf.d/"
+
+
+script="$(basename $0)"
+if [[ "$1" == "" ]]; then 
+	cat <<HELP
+
+usage:
+	connect:
+		$script config_name
+
+	scan:
+		$script scan
+
+	add:
+		$script add my_essid passwd [custom name]
+
+
+HELP
+	exit
+fi
+
+CMD=$1
+
+if [[ "$CMD" == "search" ]] || [[ "$CMD" == "scan" ]]; then 
+	iwlist wlan0 scan | grep -i essid | more
+elif [[ "$CMD" == "add" ]]; then 
+	essid=$2
+	passwd=$3
+	if [[ "$essid" == "" ]] || [[ "$passwd" == "" ]]; then 
+		echo "usage: "
+		echo ""
+		echo "    $(basename $0) add my_essid my_passwd [custom_name]"
+		exit
+	fi
+	conf_name=$4
+	if [[ "$conf_name" == "" ]]; then 
+		conf_name=$essid
+	fi
+	wpa_passphrase $essid $passwd > $CONF_DIR/$conf_name.conf
+	read -p "Press [Enter] key to connect to $conf_name..."
+        sudo bash -c "$0 $conf_name"
+fi
+
 CONF=$1
 
 if [[ "$CONF" == "" ]]; then
@@ -26,7 +74,7 @@ ifconfig eth0 10.0.10.50/24
 /etc/init.d/dnsmasq restart
 
 echo "connecting to wifi 3gconnect"
-wpa_supplicant -c"/home/$SUDO_USER/.cca/wifi-conf.d/$CONF.conf" -Dwext -iwlan0 &
+wpa_supplicant -c"$CONF_DIR/$CONF.conf" -Dwext -iwlan0 &
 sleep 5
 dhclient wlan0
 
