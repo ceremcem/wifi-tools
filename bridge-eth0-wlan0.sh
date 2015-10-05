@@ -1,22 +1,32 @@
 #!/bin/bash 
 
-echo "Making NAT configuration..."
+CONF=$1
 
-#sudo -s
+if [[ "$CONF" == "" ]]; then
+	echo "You need to supply a config name!"
+	echo "exiting..."
+	exit 1
+fi 
+
+
 
 if [ "$(id -u)" -ne "0" ]; then 
-	echo "Run this script with root priviliges"
-	sudo "$0"
-	exit
+        echo "Run this script with root priviliges"
+        sudo bash -c "$0 $1 $2"
+        exit
 fi
+
+echo "Making NAT configuration..."
 
 echo "Stopping network manager"
 /etc/init.d/network-manager stop
+killall wpa_supplicant 
+
 ifconfig eth0 10.0.10.50/24
 /etc/init.d/dnsmasq restart
 
 echo "connecting to wifi 3gconnect"
-wpa_supplicant -c/etc/wpa_supplicant.conf -Dwext -iwlan0 &
+wpa_supplicant -c"/home/$SUDO_USER/.cca/wifi-conf.d/$CONF.conf" -Dwext -iwlan0 &
 sleep 5
 dhclient wlan0
 
@@ -32,6 +42,10 @@ iptables --append FORWARD --in-interface eth0 -j ACCEPT
 echo 1 > /proc/sys/net/ipv4/ip_forward
 
 #/etc/init.d/networking reload
+
+echo "List of dhcp clients: "
+echo "----------------------"
+cat /var/lib/misc/dnsmasq.leases
 
 echo "All settings are done..."
 
